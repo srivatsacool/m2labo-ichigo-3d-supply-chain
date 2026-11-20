@@ -1,5 +1,6 @@
 import React from 'react';
 import { MAT } from './SharedMaterials';
+import { StrawberryPunnet250g } from './StrawberryAssetSystem';
 
 export type WorkerRoleColor = 'm2labo' | 'qc' | 'picker' | 'driver' | 'counterparty';
 
@@ -31,49 +32,50 @@ export const LowPolyWorker: React.FC<{
     role === 'qc' ? MAT.green : role === 'm2labo' ? MAT.secondaryNavy : role === 'driver' ? MAT.amber : MAT.darkGrey;
 
   return (
-    <group position={position} rotation={rotation}>
-      {/* Legs */}
-      <mesh position={[-0.08, 0.24, 0]} material={MAT.deepNavy} castShadow>
-        <boxGeometry args={[0.12, 0.48, 0.14]} />
+    <group position={position} rotation={rotation} scale={1.12}>
+      {/* Boots & Legs */}
+      <mesh position={[-0.08, 0.26, 0]} material={MAT.deepNavy} castShadow>
+        <boxGeometry args={[0.13, 0.52, 0.15]} />
       </mesh>
-      <mesh position={[0.08, 0.24, 0]} material={MAT.deepNavy} castShadow>
-        <boxGeometry args={[0.12, 0.48, 0.14]} />
+      <mesh position={[0.08, 0.26, 0]} material={MAT.deepNavy} castShadow>
+        <boxGeometry args={[0.13, 0.52, 0.15]} />
       </mesh>
-      {/* Torso / Uniform Vest */}
-      <mesh position={[0, 0.7, 0]} material={vestMat} castShadow>
-        <boxGeometry args={[0.34, 0.44, 0.22]} />
+      {/* Torso / Uniform Jacket + High-Vis Safety Vest */}
+      <mesh position={[0, 0.74, 0]} material={MAT.secondaryNavy} castShadow>
+        <boxGeometry args={[0.36, 0.46, 0.22]} />
+      </mesh>
+      <mesh position={[0, 0.75, 0]} material={vestMat} castShadow>
+        <boxGeometry args={[0.38, 0.34, 0.24]} />
       </mesh>
       {/* Arms */}
-      <mesh position={[-0.22, 0.68, 0.04]} rotation={[-0.35, 0, 0]} material={MAT.secondaryNavy} castShadow>
-        <boxGeometry args={[0.1, 0.36, 0.1]} />
+      <mesh position={[-0.23, 0.72, 0.05]} rotation={[-0.35, 0, 0]} material={MAT.secondaryNavy} castShadow>
+        <boxGeometry args={[0.11, 0.38, 0.11]} />
       </mesh>
-      <mesh position={[0.22, 0.68, 0.08]} rotation={[-0.55, 0, 0]} material={MAT.secondaryNavy} castShadow>
-        <boxGeometry args={[0.1, 0.36, 0.1]} />
+      <mesh position={[0.23, 0.72, 0.09]} rotation={[-0.55, 0, 0]} material={MAT.secondaryNavy} castShadow>
+        <boxGeometry args={[0.11, 0.38, 0.11]} />
       </mesh>
       {/* Head */}
-      <mesh position={[0, 1.06, 0]} material={MAT.skinTone} castShadow>
-        <dodecahedronGeometry args={[0.13, 0]} />
+      <mesh position={[0, 1.1, 0]} material={MAT.skinTone} castShadow>
+        <dodecahedronGeometry args={[0.14, 0]} />
       </mesh>
       {/* Cap / Hardhat */}
-      <mesh position={[0, 1.15, 0.02]} material={capMat} castShadow>
-        <boxGeometry args={[0.24, 0.08, 0.26]} />
+      <mesh position={[0, 1.2, 0.02]} material={capMat} castShadow>
+        <boxGeometry args={[0.25, 0.085, 0.28]} />
       </mesh>
       {/* Optional Handheld QR Scanner */}
       {holdingScanner && (
-        <group position={[0.22, 0.68, 0.24]}>
+        <group position={[0.23, 0.72, 0.26]}>
           <mesh material={MAT.darkGrey}>
-            <boxGeometry args={[0.08, 0.1, 0.14]} />
+            <boxGeometry args={[0.08, 0.11, 0.15]} />
           </mesh>
           <mesh position={[0, 0, 0.09]} material={MAT.cyan}>
             <boxGeometry args={[0.05, 0.03, 0.04]} />
           </mesh>
         </group>
       )}
-      {/* Optional Carried Punnet Box */}
+      {/* Optional Carried Fresh Strawberry Punnet */}
       {holdingBox && (
-        <mesh position={[0, 0.7, 0.26]} material={MAT.b2cBlackBox} castShadow>
-          <boxGeometry args={[0.32, 0.16, 0.22]} />
-        </mesh>
+        <StrawberryPunnet250g position={[0, 0.68, 0.32]} scale={0.95} />
       )}
     </group>
   );

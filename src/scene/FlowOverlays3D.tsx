@@ -1,11 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html, Line } from '@react-three/drei';
+import { Line } from '@react-three/drei';
 import * as THREE from 'three';
-import { FlowLayerMode, StationId } from '../data/types';
+import { FlowLayerMode, RouteKind, StationId } from '../data/types';
 import { MATERIAL_FLOW_SEGMENTS, INFORMATION_CONDUIT_LINKS } from '../process/materialFlowData';
 import { OPERATIONAL_STATIONS } from '../stations/stationsData';
 import { EXCEPTION_BRANCHES } from '../exceptions/exceptionsData';
+import { MAT } from '../models/SharedMaterials';
 
 interface FlowOverlays3DProps {
   flowMode: FlowLayerMode;
@@ -16,17 +17,24 @@ interface FlowOverlays3DProps {
   reducedMotion: boolean;
 }
 
+function sampleSmoothCurve(points: [number, number, number][]): [number, number, number][] {
+  if (points.length < 3) return points;
+  const vecs = points.map((p) => new THREE.Vector3(...p));
+  const curve = new THREE.CatmullRomCurve3(vecs);
+  return curve.getPoints(28).map((v) => [v.x, v.y, v.z] as [number, number, number]);
+}
+
 const MovingFlowPulse: React.FC<{
   points: [number, number, number][];
-  color: string;
+  routeKind: RouteKind;
   speed?: number;
   offset?: number;
   reducedMotion: boolean;
-}> = ({ points, color, speed = 0.25, offset = 0, reducedMotion }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
+}> = ({ points, routeKind, speed = 0.22, offset = 0, reducedMotion }) => {
+  const groupRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
-    if (!meshRef.current || points.length < 2) return;
+    if (!groupRef.current || points.length < 2) return;
     const t = reducedMotion ? 0.5 : (clock.getElapsedTime() * speed + offset) % 1;
     const segs = points.length - 1;
     const scaled = t * segs;
@@ -34,151 +42,242 @@ const MovingFlowPulse: React.FC<{
     const localT = scaled - idx;
     const a = points[idx];
     const b = points[idx + 1];
-    meshRef.current.position.set(
+    groupRef.current.position.set(
       a[0] + (b[0] - a[0]) * localT,
-      a[1] + (b[1] - a[1]) * localT + 0.14,
+      a[1] + (b[1] - a[1]) * localT + 0.2,
       a[2] + (b[2] - a[2]) * localT
     );
+    groupRef.current.rotation.y = Math.atan2(b[0] - a[0], b[2] - a[2]);
   });
 
+  if (routeKind === 'FORWARD_STRAWBERRY') {
+    // Vivid strawberry product marker along outbound green route
+    return (
+      <group ref={groupRef}>
+        <mesh position={[0, 0.08, 0]} rotation={[Math.PI, 0, 0]} material={MAT.strawberrySolidRed}>
+          <coneGeometry args={[0.24, 0.44, 6]} />
+        </mesh>
+        <mesh position={[0, 0.32, 0]} material={MAT.calyxGreen}>
+          <cylinderGeometry args={[0.2, 0.08, 0.08, 5]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (routeKind === 'RETURN_EMPTY_CRATES') {
+    // Hollow turquoise empty-crate icon marker along Flow A return route
+    return (
+      <group ref={groupRef}>
+        <mesh material={MAT.turquoiseReturn}>
+          <boxGeometry args={[0.52, 0.28, 0.36]} />
+        </mesh>
+        <mesh position={[0, 0.08, 0]} material={MAT.crateEmptyInner}>
+          <boxGeometry args={[0.4, 0.2, 0.26]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  if (routeKind === 'RETURN_BLACK_BAG') {
+    // Compact black insulated bag with amber return strip along Flow B return route
+    return (
+      <group ref={groupRef}>
+        <mesh material={MAT.bagBlackFabric}>
+          <boxGeometry args={[0.42, 0.34, 0.34]} />
+        </mesh>
+        <mesh position={[0, 0.14, 0]} material={MAT.amber}>
+          <boxGeometry args={[0.44, 0.07, 0.36]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // DIGITAL ERP/CRM Data Packet
   return (
-    <mesh ref={meshRef}>
-      <octahedronGeometry args={[0.17, 0]} />
-      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.65} flatShading />
+    <group ref={groupRef}>
+      <mesh material={MAT.cyan}>
+        <octahedronGeometry args={[0.3, 0]} />
+      </mesh>
+    </group>
+  );
+};
+
+const FlowDirectionArrow: React.FC<{
+  from: [number, number, number];
+  to: [number, number, number];
+  material: THREE.Material;
+}> = ({ from, to, material }) => {
+  const { pos, rotY } = useMemo(() => {
+    const mid: [number, number, number] = [
+      (from[0] + to[0]) * 0.5,
+      (from[1] + to[1]) * 0.5 + 0.12,
+      (from[2] + to[2]) * 0.5,
+    ];
+    const angle = Math.atan2(to[0] - from[0], to[2] - from[2]);
+    return { pos: mid, rotY: angle };
+  }, [from, to]);
+
+  return (
+    <mesh position={pos} rotation={[Math.PI / 2, 0, -rotY]} material={material}>
+      <coneGeometry args={[0.32, 0.72, 4]} />
     </mesh>
   );
 };
 
-export const FlowOverlays3D: React.FC<FlowOverlays3DProps> = ({
+export const FlowOverlays3D: React.FC<FlowOverlays3DProps> = React.memo(({
   flowMode,
   selectedStationId,
   showExceptionPins,
-  selectedExceptionId,
   onSelectException,
   reducedMotion,
 }) => {
   const showMaterial = flowMode === 'MATERIAL' || flowMode === 'COMBINED';
   const showInfo = flowMode === 'INFORMATION' || flowMode === 'COMBINED';
 
-  const visibleExceptions = showExceptionPins
-    ? EXCEPTION_BRANCHES
-    : selectedStationId
-    ? EXCEPTION_BRANCHES.filter((e) => e.stationId === selectedStationId)
-    : [];
+  const smoothInfoCurves = useMemo(
+    () =>
+      INFORMATION_CONDUIT_LINKS.map((link) => ({
+        ...link,
+        curvedPoints: sampleSmoothCurve(link.points3D),
+      })),
+    []
+  );
+
+  // Subtle 3D severity beacon per affected station (actual text handled by collision-free AnnotationEngine!)
+  const stationBeacons = useMemo(() => {
+    const list = showExceptionPins
+      ? EXCEPTION_BRANCHES
+      : selectedStationId
+      ? EXCEPTION_BRANCHES.filter((e) => e.stationId === selectedStationId)
+      : [];
+
+    // Keep highest-severity beacon per station in 3D space to prevent visual clutter
+    const byStation = new Map<StationId, (typeof EXCEPTION_BRANCHES)[number]>();
+    for (const exc of list) {
+      const existing = byStation.get(exc.stationId);
+      if (!existing || (exc.severity === 'CRITICAL' && existing.severity !== 'CRITICAL')) {
+        byStation.set(exc.stationId, exc);
+      }
+    }
+    return Array.from(byStation.values());
+  }, [showExceptionPins, selectedStationId]);
 
   return (
     <group>
-      {/* MATERIAL FLOW LAYER: Physical transport & warehouse paths */}
+      {/* 1. PHYSICAL MATERIAL FLOW LAYER (Ground Level y ~ 0.35–0.45m) */}
       {showMaterial &&
-        MATERIAL_FLOW_SEGMENTS.map((seg, i) => (
-          <group key={seg.id}>
-            <Line
-              points={seg.points3D}
-              color={seg.isReverseLoop ? '#E9A23B' : '#3CA77A'}
-              lineWidth={2.2}
-              dashed
-              dashSize={0.5}
-              gapSize={0.3}
-            />
-            <MovingFlowPulse
-              points={seg.points3D}
-              color={seg.isReverseLoop ? '#E9A23B' : '#3CA77A'}
-              speed={0.18}
-              offset={i * 0.17}
-              reducedMotion={reducedMotion}
-            />
-          </group>
-        ))}
+        MATERIAL_FLOW_SEGMENTS.map((seg, i) => {
+          const lineColor =
+            seg.routeKind === 'RETURN_EMPTY_CRATES'
+              ? '#2DD4BF'
+              : seg.routeKind === 'RETURN_BLACK_BAG'
+              ? '#F59E0B'
+              : '#3CA77A';
+          const arrowMat =
+            seg.routeKind === 'RETURN_EMPTY_CRATES'
+              ? MAT.turquoiseReturn
+              : seg.routeKind === 'RETURN_BLACK_BAG'
+              ? MAT.amber
+              : MAT.green;
+          const midIdx = Math.max(0, Math.floor((seg.points3D.length - 1) / 2));
 
-      {/* INFORMATION FLOW LAYER: ERP / CRM event conduits & digital node tags */}
-      {showInfo && (
-        <>
-          {INFORMATION_CONDUIT_LINKS.map((link, i) => (
-            <group key={link.id}>
+          return (
+            <group key={seg.id}>
               <Line
-                points={link.points3D}
-                color="#42C7E8"
-                lineWidth={1.8}
+                points={seg.points3D}
+                color={lineColor}
+                lineWidth={seg.isReverseLoop ? 2.8 : 3.2}
                 dashed
-                dashSize={0.35}
-                gapSize={0.25}
+                dashSize={1.1}
+                gapSize={0.55}
+              />
+              <FlowDirectionArrow
+                from={seg.points3D[midIdx]}
+                to={seg.points3D[midIdx + 1]}
+                material={arrowMat}
               />
               <MovingFlowPulse
-                points={link.points3D}
+                points={seg.points3D}
+                routeKind={seg.routeKind}
+                speed={seg.isReverseLoop ? 0.075 : 0.095}
+                offset={i * 0.13}
+                reducedMotion={reducedMotion}
+              />
+            </group>
+          );
+        })}
+
+      {/* 2. INFORMATION FLOW LAYER (Elevated Curved Cyan ERP/CRM Arches y ~ 4.2–7.8m — NEVER stacks on ground lines!) */}
+      {showInfo && (
+        <group>
+          {smoothInfoCurves.map((link, i) => (
+            <group key={link.id}>
+              <Line
+                points={link.curvedPoints}
                 color="#42C7E8"
-                speed={0.28}
-                offset={i * 0.15}
+                lineWidth={flowMode === 'INFORMATION' ? 2.6 : 1.7}
+                dashed
+                dashSize={0.85}
+                gapSize={0.45}
+              />
+              <MovingFlowPulse
+                points={link.curvedPoints}
+                routeKind="DIGITAL_ERP"
+                speed={0.12}
+                offset={i * 0.14}
                 reducedMotion={reducedMotion}
               />
             </group>
           ))}
 
+          {/* Digital System Telemetry Nodes Rising Above Each Station */}
           {OPERATIONAL_STATIONS.map((st) => (
-            <Html
-              key={`info-${st.id}`}
-              position={[st.position3D[0], st.isDigitalStation ? 3.55 : 2.95, st.position3D[2]]}
-              center
-              distanceFactor={24}
-            >
-              <div className="pointer-events-none select-none rounded border border-[#42C7E8]/80 bg-[#0A1C2E]/92 px-2 py-1 font-mono text-[9px] text-[#F4F7F8] shadow-lg backdrop-blur-sm">
-                <div className="flex items-center gap-1 font-bold text-[#42C7E8]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#42C7E8]" />
-                  <span>{st.informationFlowSummary.primaryEntityId}</span>
-                </div>
-                <div className="mt-0.5 text-[8px] text-[#A9E8F5] max-w-[170px] truncate">
-                  {st.informationFlowSummary.erpEvents[0]}
-                </div>
-              </div>
-            </Html>
+            <group key={`info-node-${st.id}`} position={[st.position3D[0], 0, st.position3D[2]]}>
+              <Line
+                points={[
+                  [0, 1.5, 0],
+                  [0, 4.4, 0],
+                ]}
+                color="#42C7E8"
+                lineWidth={1.4}
+                dashed
+                dashSize={0.3}
+                gapSize={0.22}
+              />
+              <mesh position={[0, 4.5, 0]} material={MAT.cyan}>
+                <octahedronGeometry args={[0.36, 0]} />
+              </mesh>
+            </group>
           ))}
-        </>
+        </group>
       )}
 
-      {/* EXCEPTION BRANCH 3D MARKERS */}
-      {visibleExceptions.map((exc) => {
+      {/* 3. SUBTLE 3D SEVERITY BEACONS (Clean visual anchors — no overlapping HTML banners!) */}
+      {stationBeacons.map((exc) => {
         const station = OPERATIONAL_STATIONS.find((s) => s.id === exc.stationId);
         if (!station) return null;
-        const pos: [number, number, number] = [
-          station.position3D[0] + exc.anchor3DOffset[0],
-          station.position3D[1] + exc.anchor3DOffset[1],
-          station.position3D[2] + exc.anchor3DOffset[2],
-        ];
-        const isSelected = selectedExceptionId === exc.id;
-        const borderColor = exc.severity === 'CRITICAL' ? 'border-[#D9534F]' : 'border-[#E9A23B]';
-        const textColor = exc.severity === 'CRITICAL' ? 'text-[#D9534F]' : 'text-[#E9A23B]';
-
+        const isCritical = exc.severity === 'CRITICAL';
         return (
-          <group key={exc.id}>
-            <Line
-              points={[
-                [station.position3D[0], 1.2, station.position3D[2]],
-                pos,
-              ]}
-              color={exc.severity === 'CRITICAL' ? '#D9534F' : '#E9A23B'}
-              lineWidth={1.6}
-              dashed
-              dashSize={0.25}
-              gapSize={0.2}
-            />
-            <Html position={pos} center distanceFactor={25}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectException(exc.id, exc.stationId);
-                }}
-                className={`pointer-events-auto cursor-pointer select-none whitespace-nowrap rounded border px-2 py-0.5 font-mono text-[9px] shadow-lg transition-transform hover:scale-105 ${
-                  isSelected
-                    ? `${borderColor} bg-[#173B57] text-[#F4F7F8] ring-2 ring-[#42C7E8]`
-                    : `${borderColor} bg-[#102A43]/95 ${textColor}`
-                }`}
-              >
-                ! {exc.id}: {exc.title.slice(0, 26)}{exc.title.length > 26 ? '…' : ''}
-              </button>
-            </Html>
+          <group
+            key={exc.id}
+            position={[
+              station.position3D[0] + exc.anchor3DOffset[0] * 1.4,
+              4.2,
+              station.position3D[2] + exc.anchor3DOffset[2] * 1.4,
+            ]}
+          >
+            <mesh
+              material={isCritical ? MAT.red : MAT.amber}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectException(exc.id, exc.stationId);
+              }}
+            >
+              <octahedronGeometry args={[0.38, 0]} />
+            </mesh>
           </group>
         );
       })}
     </group>
   );
-};
+});

@@ -1,21 +1,48 @@
-# Quality Assurance & Verification Report
+# QA Verification Matrix — M2Labo ICHIGO® V2
 
-## Executed Verification Checks
+Verified via TypeScript (`tsc --noEmit`), Vite production build (`npm run build`), and automated Chromium WebGL headless visual & DOM inspection across 14 viewport/camera/flow/reverse-logistics states (`1440×900` desktop and `390×844` mobile).
 
-1. **TypeScript Compilation & Production Bundle (`npm run typecheck` + `npm run build` / `tsc && vite build`)**:
-   - **Result**: Passed with exit code `0`, zero TypeScript errors, zero bundler warnings other than expected Vite `three` vendor chunk size notice.
-   - **Code-Splitting Verified**:
-     - `dist/index.html`: `0.94 kB` (`0.54 kB` gzip)
-     - Initial application shell: `dist/assets/index-Bno8EG9_.js` (`150.87 kB` / `39.33 kB` gzip)
-     - Stylesheet: `dist/assets/index-Dh6xUY0Y.css` (`27.18 kB` / `5.57 kB` gzip)
-     - Lazy-loaded 3D world scene: `dist/assets/IchigoWorldScene-CByoSHa2.js` (`48.23 kB` / `11.94 kB` gzip)
-     - Lazy-loaded Three.js / React Three Fiber vendor chunk: `dist/assets/three-Dk3gyPeQ.js` (`1,001.97 kB` / `277.79 kB` gzip)
+## Automated Build & Runtime Checks
+- `tsc --noEmit`: PASS (0 errors)
+- `vite build`: PASS (0 errors)
+- Browser Console Errors: **0**
+- Uncaught Page Errors: **0**
 
-2. **Structured Process & Governance Counts (Verified)**:
-   - **Operational Stations (`ST-01`–`ST-08`)**: `8` downstream stations starting strictly at **Farm → M2Labo Custody Handover (`M2LABO CUSTODY BEGINS HERE`)**. Upstream farm cultivation, harvesting, robots, cooling, and farm sorting/grading are excluded.
-   - **Animated Journey Sub-Steps (`STEP-01`–`STEP-11`)**: `11` connected product journey steps spanning handover, line-haul, MIDC receiving/QC, 4-bucket FIFO storage, order picking/packing, last-mile delivery, returns/quarantine, and financial reconciliation.
-   - **ERP / CRM Data Dictionary (`FLD-01-01`–`FLD-08-03`)**: `33` structured 10-attribute fields separated into `14` `SOURCE_DEFINED`, `11` `PROPOSED_DEVELOPMENT`, and `8` `DERIVED_METRIC` items.
-   - **Exception Branches (`EXC-01`–`EXC-19`)**: `19` exception pathways across Stations 01–08; `18` unfinalized contingency gates carry `decisionDefinedInSource: false` (`PROCESS DECISION REQUIRED`), and `EXC-09` encodes the confirmed non-sellable scrap quarantine lock.
+## Verification Matrix
 
-3. **Live Browser Inspection Status**:
-   - **Automated Chrome DevTools Inspection**: Blocked in this host environment because Google Chrome remote debugging (`DevToolsActivePort` at `C:\Users\MSI\AppData\Local\Google\Chrome\User Data\DevToolsActivePort`) was not active. Interactive 3D rendering, orbit/camera fly-to, and responsive visual inspection should be run directly via `npm run dev` or `npm run preview` in a WebGL-capable browser.
+### Camera Testing
+- [x] First-person movement works (`WASD` / Arrows / Shift / Touch D-pad + drag look / Mouse Lock)
+- [x] First-person camera collision works (`WORLD_BUILDING_COLLIDERS` + terrain height clamp)
+- [x] Third-person character movement works (articulated walking avatar + stride animation)
+- [x] Third-person camera follows smoothly with wall-collision pull-in
+- [x] Overview camera rotates, pans, zooms, and focuses stations smoothly
+- [x] Switching modes retains active stage and selected flow (`FLOW PRESERVED AFTER SWITCH TO THIRD PERSON: true`)
+- [x] Mobile camera & touch controls verified at `390×844`
+
+### Flow Testing
+- [x] `MATERIAL FLOW` renders physical strawberry outbound, Loop 1 empty crates, Loop 2 black delivery bags without ERP arches
+- [x] `INFORMATION FLOW` highlights elevated curved cyan ERP/CRM conduits & station telemetry beacons
+- [x] `COMBINED FLOW` cleanly separates ground physical flows from elevated digital conduits
+- [x] Flow selector operates independently across all 3 camera modes
+
+### Reverse-Logistics Testing
+- [x] Outbound truck departs Farm (`ST-01`) visibly loaded with fresh red strawberry crates + supporting ICBOX units
+- [x] Outbound truck arrives at MIDC Receiving (`ST-03`) and unloads strawberries
+- [x] Empty reusable crates are consolidated at MIDC North Bay and loaded onto Flow A return truck
+- [x] Flow A truck returns West to Farm (`ST-01`) visibly carrying **empty slatted crates only** (dual-sided cutaway verified)
+- [x] Rider at `ST-05` receives packed strawberries inside **black insulated delivery bag** (no ICBOX on scooter)
+- [x] Rider delivers to Mumbai customer (`ST-06`) and opens black insulated bag at handover
+- [x] Flow B returning rider carries empty black insulated delivery bag back to MIDC (`ST-07`) along separate amber route
+- [x] Both reverse loops have separate routes, colors, vehicles, assets, and badges (`LOOP 1: Empty Crates → Farm` & `LOOP 2: Black Bag → MIDC`)
+
+### World & Annotation Testing
+- [x] Seamless `640m × 640m` sculpted terrain + sky dome + horizon fog eliminates flat-board void borders
+- [x] Farm strawberry beds/greenhouses, dual highway, MIDC complex, and Mumbai skyline are geographically distinct and connected
+- [x] Screen-space annotation engine guarantees legible typography and AABB collision avoidance (`overlaps=0` across Overview Combined, Material, Info, ST-01, and ST-03; SVG leader lines remain anchored; Class C drawer shifts safe viewport margin automatically)
+- [x] Prioritized warnings never flood the scene or block active strawberries
+
+## Generated Reference Assets (Section 10)
+- `public/images/references/v2-hero-strawberries.jpg`
+- `public/images/references/v2-black-delivery-bag.jpg`
+- `public/images/references/v2-operators-rider.jpg`
+- `public/images/references/v2-endless-world.jpg`

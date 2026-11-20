@@ -10,6 +10,28 @@ export type StationId =
 
 export type FlowLayerMode = 'MATERIAL' | 'INFORMATION' | 'COMBINED';
 
+export type CameraMode = 'FIRST_PERSON' | 'THIRD_PERSON' | 'OVERVIEW';
+
+export type ReverseLoopId = 'LOOP_A_CRATES' | 'LOOP_B_BAGS';
+
+export type RouteKind =
+  | 'FORWARD_STRAWBERRY'
+  | 'RETURN_EMPTY_CRATES'
+  | 'RETURN_BLACK_BAG'
+  | 'DIGITAL_ERP';
+
+export type ICBOXVariant =
+  | 'closed'
+  | 'open'
+  | 'empty'
+  | 'strawberries'
+  | 'secured'
+  | 'handling'
+  | 'returned'
+  | 'quarantine';
+
+export type DeliveryBagVariant = 'closed' | 'open_strawberries' | 'empty_return';
+
 export type NavTabId =
   | 'JOURNEY'
   | 'INFORMATION_FLOW'
@@ -30,6 +52,15 @@ export type SystemOwnership =
   | 'CRM (Orders & Customers)'
   | 'CRM (Complaints & Returns)'
   | 'Shared ERP ↔ CRM';
+
+export interface SelectedWorldObject {
+  id: string;
+  label: string;
+  category: 'STRAWBERRIES' | 'EMPTY_CRATES' | 'BLACK_BAG' | 'ICBOX' | 'VEHICLE' | 'STATION';
+  stationId: StationId;
+  summary: string;
+  recordRef: string;
+}
 
 export interface ErpCrmEventField {
   id: string;
@@ -77,6 +108,12 @@ export interface OperationalStation {
   position3D: [number, number, number];
   cameraPos3D: [number, number, number];
   cameraLookAt3D: [number, number, number];
+  explorerWaypoint3D?: [number, number, number];
+  explorerLookAt3D?: [number, number, number];
+  firstPersonSpawn3D?: [number, number, number];
+  firstPersonLookAt3D?: [number, number, number];
+  heroCloseUpPos3D?: [number, number, number];
+  heroCloseUpTarget3D?: [number, number, number];
   summary: string;
   visualAssetsList: string[];
   materialMovement: {
@@ -122,6 +159,8 @@ export interface JourneySubStep {
   progressEnd: number;
   focusCameraPos: [number, number, number];
   focusTarget: [number, number, number];
+  reverseLoop?: ReverseLoopId;
+  cinematicCloseUp?: boolean;
 }
 
 export interface MaterialFlowSegment {
@@ -130,8 +169,10 @@ export interface MaterialFlowSegment {
   toStation: StationId;
   label: string;
   assetType: string;
+  routeKind: RouteKind;
   points3D: [number, number, number][];
   isReverseLoop?: boolean;
+  reverseLoopId?: ReverseLoopId;
   isDigitalOnly?: boolean;
 }
 

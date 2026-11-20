@@ -1,19 +1,36 @@
-import React, { Component, Suspense, useEffect, useState } from 'react';
+import React, { Component, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
-import { FlowLayerMode, StationId } from '../data/types';
+import { AdaptiveDpr, AdaptiveEvents } from '@react-three/drei';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Compass, Eye, Lock, Unlock } from 'lucide-react';
+import { CameraMode, FlowLayerMode, StationId } from '../data/types';
 import { OPERATIONAL_STATIONS, OVERVIEW_CAMERA } from '../stations/stationsData';
-import { DioramaBaseIsland, LowPolyTreesAndProps, RoadNetwork3D } from '../models/LowPolyEnvironment';
 import {
-  CustomerDestinationBuildings,
+  DioramaBaseIsland,
+  LowPolyTreesAndProps,
+  RoadNetwork3D,
+  UpstreamStrawberryFarmLandscape,
+} from '../models/LowPolyEnvironment';
+import {
+  CustomerDestinationDistrict,
   FinancialReconciliationStation3D,
-  MidcWarehouseComplex,
+  LineHaulHighwayCorridorStation,
+  MidcFourBucketColdStorageBuilding,
+  MidcOrderPackingFulfilmentHall,
+  MidcReceivingAndQcBuilding,
+  QuarantineReturnsAndSanitizationFacility,
   UpstreamFarmCounterpartyGate,
 } from '../models/LowPolyBuildings';
-import { LowPolyLastMileVan } from '../models/LowPolyVehicles';
+import { AmbientWorldLife } from '../models/AmbientWorldLife';
 import { CameraController } from './CameraController';
+import { ExplorerVirtualInput } from './ThirdPersonCameraController';
 import { ShipmentJourneyAnimator } from './ShipmentJourneyAnimator';
 import { FlowOverlays3D } from './FlowOverlays3D';
+import {
+  AnnotationOverlayRefs,
+  AnnotationProjectionBridge,
+  buildAnnotationDescriptors,
+  ScreenSpaceAnnotationOverlay,
+} from './AnnotationManager';
 import { Fallback2DProcessMap } from './Fallback2DProcessMap';
 import { MAT } from '../models/SharedMaterials';
 
@@ -43,59 +60,68 @@ function detectWebGLSupport(): boolean {
   }
 }
 
+/**
+ * Memoized static 3D world geometry — never re-renders when UI state or journeyProgress ticks!
+ */
+const StaticWorldEnvironment = React.memo<{ progressiveTier: 1 | 2; reducedMotion: boolean }>(
+  ({ progressiveTier, reducedMotion }) => (
+    <>
+      <DioramaBaseIsland />
+      <RoadNetwork3D />
+      <UpstreamStrawberryFarmLandscape />
+      <UpstreamFarmCounterpartyGate />
+
+      {progressiveTier >= 2 && (
+        <>
+          <LowPolyTreesAndProps />
+          <LineHaulHighwayCorridorStation animated={!reducedMotion} />
+          <MidcReceivingAndQcBuilding animated={!reducedMotion} />
+          <MidcFourBucketColdStorageBuilding animated={!reducedMotion} />
+          <MidcOrderPackingFulfilmentHall animated={!reducedMotion} />
+          <CustomerDestinationDistrict />
+          <QuarantineReturnsAndSanitizationFacility animated={!reducedMotion} />
+          <FinancialReconciliationStation3D animated={!reducedMotion} />
+          <AmbientWorldLife reducedMotion={reducedMotion} />
+        </>
+      )}
+    </>
+  )
+);
+
 interface IchigoWorldSceneProps {
+  cameraMode: CameraMode;
   selectedStationId: StationId | null;
   activeJourneyStationId: StationId;
-  journeyProgress: number;
+  journeyProgressRef: React.MutableRefObject<number>;
   flowMode: FlowLayerMode;
   showLabels: boolean;
   showExceptionPins: boolean;
+  isDetailOpen: boolean;
   selectedExceptionId: string | null;
   followShipment: boolean;
   cameraResetNonce: number;
   reducedMotion: boolean;
   force2D: boolean;
   onSelectStation: (id: StationId) => void;
+  onInspectFullStation: (id: StationId) => void;
   onSelectException: (exceptionId: string, stationId: StationId) => void;
 }
 
-const StationHitboxPedestal: React.FC<{
+const StationHitboxPedestal = React.memo<{
   stationId: StationId;
-  number: string;
-  shortTitle: string;
   position: [number, number, number];
   isSelected: boolean;
   isJourneyActive: boolean;
   isDigital?: boolean;
-  showLabels: boolean;
   onSelect: (id: StationId) => void;
-}> = ({
-  stationId,
-  number,
-  shortTitle,
-  position,
-  isSelected,
-  isJourneyActive,
-  isDigital,
-  showLabels,
-  onSelect,
-}) => {
+}>(({ stationId, position, isSelected, isJourneyActive, isDigital, onSelect }) => {
   const [hovered, setHovered] = useState(false);
-  const ringRadius = isDigital ? 3.1 : 3.4;
-
-  const badgeClass = isSelected
-    ? 'border-[#42C7E8] bg-[#173B57] text-[#F4F7F8] ring-2 ring-[#42C7E8]/50 scale-105'
-    : isJourneyActive
-    ? 'border-[#3CA77A] bg-[#102A43]/95 text-[#3CA77A]'
-    : hovered
-    ? 'border-[#A9E8F5] bg-[#173B57]/95 text-[#F4F7F8]'
-    : 'border-[#42C7E8]/50 bg-[#102A43]/88 text-[#A9E8F5]';
+  const ringRadius = isDigital ? 5.8 : 7.0;
 
   return (
     <group position={position}>
-      {/* Interactive selection & hover ground ring */}
       <mesh
-        position={[0, 0.22, 0]}
+        position={[0, 0.34, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={(e) => {
           e.stopPropagation();
@@ -111,19 +137,18 @@ const StationHitboxPedestal: React.FC<{
           document.body.style.cursor = 'auto';
         }}
       >
-        <ringGeometry args={[ringRadius - 0.18, ringRadius, 24]} />
+        <ringGeometry args={[ringRadius - 0.25, ringRadius, 28]} />
         <meshStandardMaterial
           color={isSelected ? '#42C7E8' : isJourneyActive ? '#3CA77A' : hovered ? '#A9E8F5' : '#27B7D8'}
           emissive={isSelected ? '#42C7E8' : isJourneyActive ? '#3CA77A' : '#000000'}
           emissiveIntensity={isSelected ? 0.6 : isJourneyActive ? 0.45 : 0}
           transparent
-          opacity={isSelected || hovered || isJourneyActive ? 0.92 : 0.36}
+          opacity={isSelected || hovered || isJourneyActive ? 0.88 : 0.22}
         />
       </mesh>
 
-      {/* Transparent floor click disc for forgiving mouse hit-testing */}
       <mesh
-        position={[0, 0.12, 0]}
+        position={[0, 0.2, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={(e) => {
           e.stopPropagation();
@@ -143,181 +168,304 @@ const StationHitboxPedestal: React.FC<{
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
 
-      {/* Highlight Pillar when Selected */}
       {isSelected && (
-        <mesh position={[0, 0.2, 0]} material={MAT.cyan}>
-          <cylinderGeometry args={[0.14, 0.14, 0.2, 8]} />
+        <mesh position={[0, 0.32, 0]} material={MAT.cyan}>
+          <cylinderGeometry args={[0.2, 0.2, 0.28, 8]} />
         </mesh>
-      )}
-
-      {/* Clickable 3D Station Callout Pin */}
-      {showLabels && (
-        <Html position={[0, isDigital ? 4.25 : 3.9, 0]} center distanceFactor={25}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(stationId);
-            }}
-            className={`pointer-events-auto cursor-pointer select-none whitespace-nowrap rounded-md border px-2.5 py-1 font-mono text-[10px] font-semibold shadow-lg transition-all ${badgeClass}`}
-          >
-            <span className="mr-1.5 font-bold text-[#42C7E8]">{number}</span>
-            <span>{shortTitle}</span>
-          </button>
-        </Html>
       )}
     </group>
   );
-};
+});
 
-export const IchigoWorldScene: React.FC<IchigoWorldSceneProps> = ({
-  selectedStationId,
-  activeJourneyStationId,
-  journeyProgress,
-  flowMode,
-  showLabels,
-  showExceptionPins,
-  selectedExceptionId,
-  followShipment,
-  cameraResetNonce,
-  reducedMotion,
-  force2D,
-  onSelectStation,
-  onSelectException,
-}) => {
-  const [webglReady, setWebglReady] = useState(true);
+export const IchigoWorldScene: React.FC<IchigoWorldSceneProps> = React.memo(
+  ({
+    cameraMode,
+    selectedStationId,
+    activeJourneyStationId,
+    journeyProgressRef,
+    flowMode,
+    showLabels,
+    showExceptionPins,
+    isDetailOpen,
+    selectedExceptionId,
+    followShipment,
+    cameraResetNonce,
+    reducedMotion,
+    force2D,
+    onSelectStation,
+    onInspectFullStation,
+    onSelectException,
+  }) => {
+    const [webglReady, setWebglReady] = useState(true);
+    const [sceneInitialized, setSceneInitialized] = useState(false);
+    const [progressiveTier, setProgressiveTier] = useState<1 | 2>(1);
+    const [pointerLockRequestNonce, setPointerLockRequestNonce] = useState(0);
+    const [isPointerLocked, setIsPointerLocked] = useState(false);
 
-  useEffect(() => {
-    setWebglReady(detectWebGLSupport());
-    return () => {
-      document.body.style.cursor = 'auto';
-    };
-  }, []);
+    const virtualInputRef = useRef<ExplorerVirtualInput>({
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+    });
 
-  if (force2D || !webglReady) {
-    return (
-      <Fallback2DProcessMap
-        selectedStationId={selectedStationId}
-        activeJourneyStationId={activeJourneyStationId}
-        flowMode={flowMode}
-        onSelectStation={onSelectStation}
-        reason={!webglReady ? 'WebGL Unavailable — Auto Fallback' : undefined}
-      />
+    const overlayRefs = useRef<AnnotationOverlayRefs>({
+      cardRefs: new Map(),
+      lineRefs: new Map(),
+      dotRefs: new Map(),
+    });
+
+    const { items: annotationItems, prioritizedExceptions, focusedStationId } = useMemo(
+      () =>
+        buildAnnotationDescriptors(
+          selectedStationId,
+          activeJourneyStationId,
+          flowMode,
+          showExceptionPins,
+          isDetailOpen
+        ),
+      [selectedStationId, activeJourneyStationId, flowMode, showExceptionPins, isDetailOpen]
     );
-  }
 
-  return (
-    <WebGLErrorBoundary
-      fallback={
+    useEffect(() => {
+      setWebglReady(detectWebGLSupport());
+      const timer = window.setTimeout(() => setProgressiveTier(2), 120);
+      return () => {
+        window.clearTimeout(timer);
+        document.body.style.cursor = 'auto';
+      };
+    }, []);
+
+    if (force2D || !webglReady) {
+      return (
         <Fallback2DProcessMap
           selectedStationId={selectedStationId}
           activeJourneyStationId={activeJourneyStationId}
           flowMode={flowMode}
           onSelectStation={onSelectStation}
-          reason="3D Context Recovery Fallback"
+          reason={!webglReady ? 'WebGL Unavailable — Auto Fallback' : undefined}
         />
-      }
-    >
-      <div className="relative h-full w-full bg-[#0A1C2E]">
-        <Canvas
-          shadows
-          dpr={[1, 1.75]}
-          camera={{ position: OVERVIEW_CAMERA.position, fov: 42, near: 0.5, far: 160 }}
-          onCreated={({ gl }) => {
-            gl.domElement.addEventListener('webglcontextlost', (e) => {
-              e.preventDefault();
-              setWebglReady(false);
-            });
-          }}
-        >
-          <color attach="background" args={['#0A1C2E']} />
-          <fog attach="fog" args={['#0A1C2E', 52, 115]} />
+      );
+    }
 
-          {/* Soft Architectural Lighting */}
-          <ambientLight intensity={0.62} color="#F4F7F8" />
-          <hemisphereLight args={['#A9E8F5', '#102A43', 0.45]} />
-          <directionalLight
-            position={[22, 32, 18]}
-            intensity={1.35}
-            color="#FFFDF9"
-            castShadow
-            shadow-mapSize={[1024, 1024]}
-            shadow-camera-left={-32}
-            shadow-camera-right={32}
-            shadow-camera-top={20}
-            shadow-camera-bottom={-20}
-            shadow-camera-near={5}
-            shadow-camera-far={90}
-            shadow-bias={-0.0005}
+    const setVirtualDir = (dir: keyof ExplorerVirtualInput, active: boolean) => {
+      virtualInputRef.current[dir] = active;
+    };
+
+    return (
+      <WebGLErrorBoundary
+        fallback={
+          <Fallback2DProcessMap
+            selectedStationId={selectedStationId}
+            activeJourneyStationId={activeJourneyStationId}
+            flowMode={flowMode}
+            onSelectStation={onSelectStation}
+            reason="3D Context Recovery Fallback"
           />
-          <directionalLight position={[-18, 14, -14]} intensity={0.42} color="#42C7E8" />
+        }
+      >
+        <div className="relative h-full w-full bg-[#091A2B]">
+          {!sceneInitialized && (
+            <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#091A2B]/95 text-center">
+              <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#42C7E8] border-t-transparent" />
+              <p className="mt-3 text-sm font-semibold text-[#F4F7F8]">
+                Loading M2Labo ICHIGO® Strawberry Cold-Chain World…
+              </p>
+              <p className="mt-1 font-mono text-xs text-[#8C9BA5]">
+                Preparing optimized farm valley, MIDC hub &amp; live strawberry tracking
+              </p>
+            </div>
+          )}
 
-          <Suspense fallback={null}>
-            {/* Diorama Foundation, Roads & Environmental Props */}
-            <DioramaBaseIsland />
-            <RoadNetwork3D />
-            <LowPolyTreesAndProps />
+          <Canvas
+            shadows="percentage"
+            dpr={[1, 1.5]}
+            gl={{ powerPreference: 'high-performance', antialias: true }}
+            camera={{ position: OVERVIEW_CAMERA.position, fov: 44, near: 0.4, far: 420 }}
+            onCreated={({ gl }) => {
+              setSceneInitialized(true);
+              gl.domElement.addEventListener('webglcontextlost', (e) => {
+                e.preventDefault();
+                setWebglReady(false);
+              });
+            }}
+          >
+            <color attach="background" args={['#0E2338']} />
+            <fog attach="fog" args={['#122B43', 105, 315]} />
 
-            {/* Station 01: Upstream Farm Counterparty Boundary & Custody Handover Gate */}
-            <UpstreamFarmCounterpartyGate showSignage={showLabels} />
+            <AdaptiveDpr pixelated />
+            <AdaptiveEvents />
 
-            {/* Stations 03, 04, 05, 07: Andheri MIDC Warehouse Complex */}
-            <MidcWarehouseComplex showZones={showLabels} />
+            {/* High-Performance Balanced Lighting Rig (zero expensive per-pixel pointLight loops!) */}
+            <ambientLight intensity={0.85} color="#EEF5FA" />
+            <hemisphereLight args={['#C6EBFA', '#1A3244', 0.72]} />
+            <directionalLight
+              position={[54, 74, 46]}
+              intensity={1.65}
+              color="#FFF9ED"
+              castShadow
+              shadow-mapSize={[1024, 1024]}
+              shadow-camera-left={-90}
+              shadow-camera-right={90}
+              shadow-camera-top={58}
+              shadow-camera-bottom={-58}
+              shadow-camera-near={14}
+              shadow-camera-far={220}
+              shadow-bias={-0.0005}
+            />
+            <directionalLight position={[-56, 38, -36]} intensity={0.62} color="#8CE0F7" />
 
-            {/* Station 06: Last-Mile Customer Destination Buildings & Parked B2B Urban Van */}
-            <CustomerDestinationBuildings />
-            <LowPolyLastMileVan position={[14.8, 0.06, 1.2]} rotation={[0, -0.35, 0]} />
+            <Suspense fallback={null}>
+              <StaticWorldEnvironment progressiveTier={progressiveTier} reducedMotion={reducedMotion} />
 
-            {/* Station 08: Compact Digital Financial Reconciliation Nexus */}
-            <FinancialReconciliationStation3D />
+              {OPERATIONAL_STATIONS.map((station) => (
+                <StationHitboxPedestal
+                  key={station.id}
+                  stationId={station.id}
+                  position={station.position3D}
+                  isSelected={selectedStationId === station.id}
+                  isJourneyActive={activeJourneyStationId === station.id}
+                  isDigital={station.isDigitalStation}
+                  onSelect={onSelectStation}
+                />
+              ))}
 
-            {/* Interactive Clickable Hitboxes & Station Labels for ST-01 .. ST-08 */}
-            {OPERATIONAL_STATIONS.map((station) => (
-              <StationHitboxPedestal
-                key={station.id}
-                stationId={station.id}
-                number={station.number}
-                shortTitle={station.shortTitle}
-                position={station.position3D}
-                isSelected={selectedStationId === station.id}
-                isJourneyActive={activeJourneyStationId === station.id}
-                isDigital={station.isDigitalStation}
-                showLabels={showLabels}
-                onSelect={onSelectStation}
+              <ShipmentJourneyAnimator
+                journeyProgressRef={journeyProgressRef}
+                flowMode={flowMode}
+                reducedMotion={reducedMotion}
               />
-            ))}
 
-            {/* Animated Product Journey (Vehicles, Highlighted Shipment, Return Loop) */}
-            <ShipmentJourneyAnimator
-              journeyProgress={journeyProgress}
-              flowMode={flowMode}
-              showLabels={showLabels}
-              reducedMotion={reducedMotion}
-            />
+              <FlowOverlays3D
+                flowMode={flowMode}
+                selectedStationId={selectedStationId}
+                showExceptionPins={showExceptionPins}
+                selectedExceptionId={selectedExceptionId}
+                onSelectException={onSelectException}
+                reducedMotion={reducedMotion}
+              />
 
-            {/* Material / Information / Combined Overlays & Exception Branches */}
-            <FlowOverlays3D
-              flowMode={flowMode}
-              selectedStationId={selectedStationId}
-              showExceptionPins={showExceptionPins}
-              selectedExceptionId={selectedExceptionId}
-              onSelectException={onSelectException}
-              reducedMotion={reducedMotion}
-            />
+              <AnnotationProjectionBridge
+                items={annotationItems}
+                overlayRefs={overlayRefs}
+                cameraMode={cameraMode}
+                showLabels={showLabels}
+                isDetailOpen={isDetailOpen}
+              />
 
-            {/* Smooth Camera Orbit & Auto-Focus Controller */}
-            <CameraController
-              selectedStationId={selectedStationId}
-              cameraResetNonce={cameraResetNonce}
-              followShipment={followShipment}
-              journeyProgress={journeyProgress}
-              reducedMotion={reducedMotion}
-            />
-          </Suspense>
-        </Canvas>
-      </div>
-    </WebGLErrorBoundary>
-  );
-};
+              <CameraController
+                cameraMode={cameraMode}
+                selectedStationId={selectedStationId}
+                activeJourneyStationId={activeJourneyStationId}
+                cameraResetNonce={cameraResetNonce}
+                followShipment={followShipment}
+                journeyProgressRef={journeyProgressRef}
+                reducedMotion={reducedMotion}
+                virtualInputRef={virtualInputRef}
+                pointerLockRequestNonce={pointerLockRequestNonce}
+                onPointerLockChange={setIsPointerLocked}
+                onSelectStation={onSelectStation}
+              />
+            </Suspense>
+          </Canvas>
+
+          <ScreenSpaceAnnotationOverlay
+            items={annotationItems}
+            prioritizedExceptions={prioritizedExceptions}
+            focusedStationId={focusedStationId}
+            activeJourneyStationId={activeJourneyStationId}
+            flowMode={flowMode}
+            showLabels={showLabels}
+            overlayRefs={overlayRefs}
+            onSelectStation={onSelectStation}
+            onInspectFullStation={onInspectFullStation}
+            onSelectException={onSelectException}
+          />
+
+          {(cameraMode === 'FIRST_PERSON' || cameraMode === 'THIRD_PERSON') && (
+            <div className="pointer-events-auto absolute bottom-32 left-3 z-20 flex items-center gap-3 rounded-xl glass-panel px-3.5 py-2.5 sm:bottom-36">
+              <div className="grid grid-cols-3 gap-1">
+                <div />
+                <button
+                  type="button"
+                  aria-label="Move Forward"
+                  onPointerDown={() => setVirtualDir('forward', true)}
+                  onPointerUp={() => setVirtualDir('forward', false)}
+                  onPointerLeave={() => setVirtualDir('forward', false)}
+                  className="flex h-8 w-8 items-center justify-center rounded border border-[#42C7E8]/40 bg-[#102A43] text-[#A9E8F5] active:bg-[#42C7E8] active:text-[#071524]"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+                <div />
+                <button
+                  type="button"
+                  aria-label="Move Left"
+                  onPointerDown={() => setVirtualDir('left', true)}
+                  onPointerUp={() => setVirtualDir('left', false)}
+                  onPointerLeave={() => setVirtualDir('left', false)}
+                  className="flex h-8 w-8 items-center justify-center rounded border border-[#42C7E8]/40 bg-[#102A43] text-[#A9E8F5] active:bg-[#42C7E8] active:text-[#071524]"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move Backward"
+                  onPointerDown={() => setVirtualDir('backward', true)}
+                  onPointerUp={() => setVirtualDir('backward', false)}
+                  onPointerLeave={() => setVirtualDir('backward', false)}
+                  className="flex h-8 w-8 items-center justify-center rounded border border-[#42C7E8]/40 bg-[#102A43] text-[#A9E8F5] active:bg-[#42C7E8] active:text-[#071524]"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Move Right"
+                  onPointerDown={() => setVirtualDir('right', true)}
+                  onPointerUp={() => setVirtualDir('right', false)}
+                  onPointerLeave={() => setVirtualDir('right', false)}
+                  className="flex h-8 w-8 items-center justify-center rounded border border-[#42C7E8]/40 bg-[#102A43] text-[#A9E8F5] active:bg-[#42C7E8] active:text-[#071524]"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center gap-1.5 font-mono font-bold text-[#3CA77A]">
+                  {cameraMode === 'FIRST_PERSON' ? (
+                    <>
+                      <Eye className="h-3.5 w-3.5" />
+                      <span>FIRST PERSON</span>
+                    </>
+                  ) : (
+                    <>
+                      <Compass className="h-3.5 w-3.5" />
+                      <span>THIRD PERSON</span>
+                    </>
+                  )}
+                </div>
+                <div className="text-[12.5px] text-[#EDF3F7]">WASD / Arrows: Walk • Shift: Sprint</div>
+                <div className="text-[11.5px] text-[#A9E8F5]/80">
+                  {cameraMode === 'FIRST_PERSON'
+                    ? 'Drag mouse to look around'
+                    : 'Drag: Orbit • Wheel: Zoom • Space: Nearest Station'}
+                </div>
+                {cameraMode === 'FIRST_PERSON' && (
+                  <button
+                    type="button"
+                    onClick={() => setPointerLockRequestNonce((n) => n + 1)}
+                    className="mt-1 inline-flex items-center gap-1.5 rounded border border-[#42C7E8]/50 bg-[#173B57] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#A9E8F5] hover:bg-[#42C7E8] hover:text-[#071524]"
+                  >
+                    {isPointerLocked ? <Unlock className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
+                    <span>{isPointerLocked ? 'Esc to Unlock Mouse' : 'Mouse Look Lock'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </WebGLErrorBoundary>
+    );
+  }
+);
 
 export default IchigoWorldScene;
