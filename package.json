@@ -1,9 +1,9 @@
 {
-  "name": "m2labo-ichigo-cold-chain-blueprint",
+  "name": "m2labo-ichigo-3d-supply-chain",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
-  "description": "THE COLD CHAIN — M2Labo Bharat / ICHIGO® Interactive Supply Chain Blueprint",
+  "description": "M2Labo ICHIGO® — Interactive Low-Poly 3D Downstream Supply Chain & ERP/CRM Architecture",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

@@ -4,17 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        blueprint: {
-          deep: '#0B1F33',
-          base: '#102A43',
-          navy: '#12334D',
-          panel: '#173B57',
+        ichigo: {
+          backdrop: '#0A1C2E',
+          navy: '#102A43',
+          secondary: '#173B57',
           cyan: '#42C7E8',
-          line: '#27B7D8',
-          electric: '#1D9BF0',
-          white: '#F5FAFC',
-          pale: '#EAF5F8',
-          muted: '#9BB4C5',
+          lightCyan: '#A9E8F5',
+          offWhite: '#F4F7F8',
+          grey: '#8C9BA5',
           amber: '#E9A23B',
           red: '#D9534F',
           green: '#3CA77A',

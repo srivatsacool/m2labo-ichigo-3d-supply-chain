@@ -2,25 +2,20 @@
 
 ## Executed Verification Checks
 
-1. **TypeScript Compilation & Production Bundle (`npm run build` / `tsc && vite build`)**:
-   - **Result**: Passed with exit code `0`, zero TypeScript errors, zero CSS minification warnings.
+1. **TypeScript Compilation & Production Bundle (`npm run typecheck` + `npm run build` / `tsc && vite build`)**:
+   - **Result**: Passed with exit code `0`, zero TypeScript errors, zero bundler warnings other than expected Vite `three` vendor chunk size notice.
    - **Code-Splitting Verified**:
-     - Initial 2D app chunk: `dist/assets/index-CzhBf3Xd.js` (`383.66 kB` / `96.90 kB` gzip)
-     - Stylesheet: `dist/assets/index-WXopCn5t.css` (`28.69 kB` / `6.04 kB` gzip)
-     - Lazy-loaded 3D wrapper: `dist/assets/SpatialSceneViewer-DrHdmtyS.js` (`10.52 kB` / `3.19 kB` gzip)
-     - Lazy-loaded Three.js chunk: `dist/assets/three-C1iQR8Kg.js` (`1,055.54 kB` / `293.43 kB` gzip)
+     - `dist/index.html`: `0.94 kB` (`0.54 kB` gzip)
+     - Initial application shell: `dist/assets/index-Bno8EG9_.js` (`150.87 kB` / `39.33 kB` gzip)
+     - Stylesheet: `dist/assets/index-Dh6xUY0Y.css` (`27.18 kB` / `5.57 kB` gzip)
+     - Lazy-loaded 3D world scene: `dist/assets/IchigoWorldScene-CByoSHa2.js` (`48.23 kB` / `11.94 kB` gzip)
+     - Lazy-loaded Three.js / React Three Fiber vendor chunk: `dist/assets/three-Dk3gyPeQ.js` (`1,001.97 kB` / `277.79 kB` gzip)
 
-2. **Preview Server Smoke Check (`npx vite preview --port 4173 --host 127.0.0.1`)**:
-   - **Result**: `HTTP STATUS: 200`, `dist/index.html` served cleanly (`931` bytes).
+2. **Structured Process & Governance Counts (Verified)**:
+   - **Operational Stations (`ST-01`–`ST-08`)**: `8` downstream stations starting strictly at **Farm → M2Labo Custody Handover (`M2LABO CUSTODY BEGINS HERE`)**. Upstream farm cultivation, harvesting, robots, cooling, and farm sorting/grading are excluded.
+   - **Animated Journey Sub-Steps (`STEP-01`–`STEP-11`)**: `11` connected product journey steps spanning handover, line-haul, MIDC receiving/QC, 4-bucket FIFO storage, order picking/packing, last-mile delivery, returns/quarantine, and financial reconciliation.
+   - **ERP / CRM Data Dictionary (`FLD-01-01`–`FLD-08-03`)**: `33` structured 10-attribute fields separated into `14` `SOURCE_DEFINED`, `11` `PROPOSED_DEVELOPMENT`, and `8` `DERIVED_METRIC` items.
+   - **Exception Branches (`EXC-01`–`EXC-19`)**: `19` exception pathways across Stations 01–08; `18` unfinalized contingency gates carry `decisionDefinedInSource: false` (`PROCESS DECISION REQUIRED`), and `EXC-09` encodes the confirmed non-sellable scrap quarantine lock.
 
-3. **Data Completeness & Governance Audit**:
-   - **Milestones**: 11 / 11 (`M01`–`M11`), each populating all 26 standard template sections (`sec01`–`sec26`).
-   - **Scenario Simulations**: 24 / 24 (`SCN-01`–`SCN-24`), each containing an 8-phase sequence and interactive branching decision tree, explicitly tagged `ILLUSTRATIVE SIMULATION`.
-   - **FMEA Risk Library**: 11 core risk records (`RSK-M01-01`–`RSK-M11-01`) with uninvented numerical RPNs (`UNSCORED`).
-   - **Open Questions & Discrepancies**: 25 open question categories (`OQ-01`–`OQ-25`) + 3 preserved source discrepancies (`DSC-01`–`DSC-03`).
-   - **Digital Traceability**: 14 connected identifier stages (`Demand ID` → `Invoice / Payment / Credit Note ID`).
-   - **KPI Analytics**: 9 domains (`Farm`, `Harvesting`, `Cold Chain`, `Transport`, `Warehouse`, `Fulfilment`, `Last-Mile`, `Customer`, `Finance`), all sample metrics labelled `ILLUSTRATIVE SIMULATION`.
-   - **Packaging & Equipment Atlas**: Separate B2C (`2 × 250g` black boxes inside `500g` carton) and B2B (`moulded cavity sheet/tray` inside transport crates) SVG engineering specs + 9 equipment/facility items + verified Polyfork `CC BY 4.0` attributions.
-
-4. **Known QA Limitation in This Environment**:
-   - **Automated Chrome DevTools Inspection**: Blocked because Chrome remote debugging (`DevToolsActivePort`) was not active on the host machine. Interactive layout, responsive breakpoints, print output, and live WebGL GLB streaming should be visually verified by opening `npm run dev` in a local browser.
+3. **Live Browser Inspection Status**:
+   - **Automated Chrome DevTools Inspection**: Blocked in this host environment because Google Chrome remote debugging (`DevToolsActivePort` at `C:\Users\MSI\AppData\Local\Google\Chrome\User Data\DevToolsActivePort`) was not active. Interactive 3D rendering, orbit/camera fly-to, and responsive visual inspection should be run directly via `npm run dev` or `npm run preview` in a WebGL-capable browser.

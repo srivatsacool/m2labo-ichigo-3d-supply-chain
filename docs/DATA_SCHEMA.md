@@ -1,41 +1,33 @@
-# Data Schema Reference (`src/types/blueprint.ts`)
+# Data Schema Reference (`src/data/types.ts`)
 
-## Validation Governance
-Every record uses `ValidationStatus`:
-- `'CONFIRMED IN PROJECT DISCUSSION'`
-- `'SOURCE DOCUMENT PROPOSAL'`
-- `'PROPOSED DESIGN'`
-- `'UNKNOWN / NEEDS VERIFICATION'`
-- `'ILLUSTRATIVE SIMULATION'`
+## Operational Stations (`OperationalStation`)
+Represents the 8 downstream operational stations (`ST-01` through `ST-08`):
+- `ST-01`: Farm-to-M2Labo Custody Handover (`custodyBanner: 'M2LABO CUSTODY BEGINS HERE'`)
+- `ST-02`: Line-Haul Transport (Option A Reefer vs Option B Normal Van + Insulated Boxes)
+- `ST-03`: Andheri MIDC Receiving and QC (6 mandatory checks)
+- `ST-04`: Inventory and Reshuffling (4 physically segregated buckets + FIFO)
+- `ST-05`: Customer Order, Picking and Packing (B2C black 250g/500g vs B2B cavity trays + insulated bags/coolants)
+- `ST-06`: Last-Mile Delivery (hybrid modes + Digital POD + reusable bag return)
+- `ST-07`: Returns and Complaints (CRM linkage + Quarantine QC + never auto-sellable)
+- `ST-08`: Financial Reconciliation (`isDigitalStation: true`)
 
-## Milestone Schema (`MilestoneData`)
-Each of the 11 milestones populates all 26 required standard sections:
-- `sec01_processOverview` (`string`)
-- `sec02_purposeAndImportance` (`string`)
-- `sec03_entryConditions` (`string[]`)
-- `sec04_inputsAndMaterials` (`{ item, spec, status }[]`)
-- `sec05_equipmentAndTools` (`{ name, purpose, status }[]`)
-- `sec06_workerActivities` (`WorkerActivityDetail[]` — answering *Who, What, Equipment, Inspect, Record, Failure, Approval, Handover*)
-- `sec07_stepByStepWorkflow` (`WorkflowStep[]`)
-- `sec08_supervisorResponsibilities` (`string[]`)
-- `sec09_qcResponsibilities` (`string[]`)
-- `sec10_requiredDataAndRecords` (`{ field, format, status }[]`)
-- `sec11_qrBarcodeInteractions` (`{ scanEvent, idLevel, direction, status }[]`)
-- `sec12_decisionGates` (`DecisionGate[]`)
-- `sec13_acceptanceCriteria` (`{ parameter, criterion, sampling, failureAction, status }[]`)
-- `sec14_failureAndExceptions` (`{ mode, trigger, impact, status }[]`)
-- `sec15_preventiveControls` (`string[]`)
-- `sec16_correctiveActions` (`string[]`)
-- `sec17_escalationMatrix` (`EscalationTier[]`)
-- `sec18_workerChecklist` (`ChecklistItem[]` — Before / During / After)
-- `sec19_supervisorChecklist` (`{ id, check, signOffCriteria, status }[]`)
-- `sec20_handoverRequirements` (`{ fromRole, toRole, physicalItem, digitalRecord, acknowledgement, status }`)
-- `sec21_outputs` (`string[]`)
-- `sec22_dependencies` (`{ upstream, downstream, crossCutting }`)
-- `sec23_kpis` (`KpiDefinition[]`)
-- `sec24_improvementOpportunities` (`string[]`)
-- `sec25_openQuestions` (`string[]`)
-- `sec26_sourceReferences` (`{ source, excerpt, status, conflictNote? }[]`)
+## ERP & CRM Field Schema (`ErpCrmEventField`)
+Every digital data field captures all 10 required attributes:
+1. `eventName`
+2. `eventTrigger`
+3. `fieldName` (plus descriptive `fieldKey`)
+4. `dataType`
+5. `requiredStatus` (`'Required' | 'Optional' | 'Conditional'`)
+6. `captureMethod`
+7. `systemOwnership` (`ERP (...)`, `CRM (...)`, or `'Shared ERP ↔ CRM'`)
+8. `relatedEntity`
+9. `analyticalPurpose`
+10. `validationRules`
 
-## Scenario Simulation Schema (`ScenarioSimulation`)
-Every scenario (`SCN-01` through `SCN-24`) encodes an 8-phase `sequence` (`TRIGGER` → `DETECTION` → `IMMEDIATE_ACTION` → `NOTIFICATION` → `ASSESSMENT` → `DECISION` → `RECOVERY` → `CLOSURE`) plus an interactive branching `decisionTree`.
+Classified strictly by `category`:
+- `'SOURCE_DEFINED'`
+- `'PROPOSED_DEVELOPMENT'`
+- `'DERIVED_METRIC'`
+
+## Exception Branch Schema (`ExceptionBranch`)
+Encodes 19 downstream process exceptions (`EXC-01`..`EXC-19`), including `trigger`, `affectedEntity`, `dataToCapture`, `responsibleRole`, `currentProcessStatus`, `requiredDecision`, `decisionDefinedInSource`, `processDecisionNote`, `resolutionRecord`, and `anchor3DOffset`. Whenever `decisionDefinedInSource === false`, UI views render the mandatory **`PROCESS DECISION REQUIRED`** badge.
