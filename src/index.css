@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bp-deep: #0B1F33;
+    --bp-base: #102A43;
+    --bp-navy: #12334D;
+    --bp-panel: #173B57;
+    --bp-cyan: #42C7E8;
+    --bp-line: #27B7D8;
+    --bp-electric: #1D9BF0;
+    --bp-white: #F5FAFC;
+    --bp-pale: #EAF5F8;
+    --bp-muted: #9BB4C5;
+    --bp-amber: #E9A23B;
+    --bp-red: #D9534F;
+    --bp-green: #3CA77A;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: #0B1F33;
+    color: #F5FAFC;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(66, 199, 232, 0.35) rgba(11, 31, 51, 0.7);
+  }
+}
+
+/* Dual-scale Industrial CAD Engineering Grid */
+.bg-blueprint-grid {
+  background-color: #0B1F33;
+  background-image:
+    linear-gradient(to right, rgba(66, 199, 232, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(66, 199, 232, 0.08) 1px, transparent 1px),
+    linear-gradient(to right, rgba(66, 199, 232, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(66, 199, 232, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px, 64px 64px, 16px 16px, 16px 16px;
+}
+
+.bg-blueprint-surface {
+  background-color: #102A43;
+  background-image:
+    linear-gradient(to right, rgba(66, 199, 232, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(66, 199, 232, 0.05) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.tech-border {
+  border: 1px solid rgba(66, 199, 232, 0.25);
+  box-shadow: inset 0 1px 0 rgba(245, 250, 252, 0.05);
+}
+
+.tech-border-active {
+  border: 1px solid rgba(66, 199, 232, 0.75);
+  box-shadow: 0 0 18px rgba(66, 199, 232, 0.14), inset 0 1px 0 rgba(66, 199, 232, 0.2);
+}
+
+/* Animated cyan process spine flow */
+@keyframes spineFlow {
+  0% {
+    stroke-dashoffset: 48;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes packetTravel {
+  0% {
+    transform: translateX(0);
+    opacity: 0.2;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0.2;
+  }
+}
+
+.animate-spine-flow {
+  stroke-dasharray: 8 8;
+  animation: spineFlow 1.6s linear infinite;
+}
+
+.reduced-motion .animate-spine-flow {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spine-flow {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.reduced-motion * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Horizontal scrollbar polish */
+.horizontal-canvas-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+.horizontal-canvas-scroll::-webkit-scrollbar-track {
+  background: #0B1F33;
+  border-top: 1px solid rgba(66, 199, 232, 0.15);
+}
+.horizontal-canvas-scroll::-webkit-scrollbar-thumb {
+  background: rgba(66, 199, 232, 0.35);
+  border-radius: 2px;
+}
+.horizontal-canvas-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(66, 199, 232, 0.65);
+}
+
+/* Print / PDF Blueprint Report Formatting */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+  body {
+    background: #ffffff !important;
+    color: #0b1f33 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-break-avoid {
+    break-inside: avoid;
+  }
+}

@@ -1,0 +1,19 @@
+# --- secrets / local env files (never commit credentials) ---
+*.env
+*.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.local
+secrets.json
+*.pem
+*.key
+
+# --- build artifacts & local cache ---
+dist/
+build/
+.wrangler/
+*.tsbuildinfo
+
+# --- dependencies ---
+node_modules/
